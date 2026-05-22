@@ -1,27 +1,30 @@
 import yfinance as yf
 import pandas as pd
+import re
 
+def load_data(ticker="AAPL"):
 
-cr_assets = []
-cr_assets_ta = []
-errors = []
+    asset=ticker.upper()
+    asset = asset.replace(" ", "")
 
-#input usera narazie tak
+    #ticker regex
+    pattern = r'^[A-Za-z0-9\.\-]+$'
+    if not re.match(pattern, ticker):
+        print("Nieprawidłowy ticker. Ticker powinien zawierać tylko litery")
+        exit()
 
-# answer = input("Podaj coin (np. BTC): ")
-# if answer=='':
-#     print("Nie podano nazwy")
-#     exit()  
-# answer=answer.upper()
-# cr_assets.append(answer+'-USD')
-# cr_assets_ta.append('BINANCE:'+answer+'USD')
+    asset_data = yf.Ticker(asset).history(period='1d', interval='1m')
 
-# if len(cr_assets) == 0: #brak inputu jakiegokolwiek
-#     print("Nie podano nazwy")
-#     exit()
+    return asset_data
 
-#asset = cr_assets[0]
-stock_data = yf.Ticker("AAPL").history(period='1y', interval='1d')
-print(stock_data)
+    #asset_data['EMA30'] = asset_data['Close'].ewm(span=30, adjust=False).mean()
 
-stock_data['EMA30'] = stock_data['Close'].ewm(span=30, adjust=False).mean()
+if __name__ == "__main__":
+
+    answer = input("Podaj ticker: ")
+    if answer=='':
+        print("Nie podano nazwy")
+        exit()  
+
+    stock_data = load_data(answer)
+    print(stock_data)
