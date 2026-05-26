@@ -109,7 +109,8 @@ def feature_set_all(df: pd.DataFrame, z_thresh: float = 3.0):
 
 if __name__ == "__main__":
     from load_data import load_ticker
-    df = load_ticker("AAPL")
+    ticker = input("Enter ticker (AAPL): ")
+    df = load_ticker(ticker)
     for name, fn in [("A", feature_set_a), ("B", feature_set_b), ("C", feature_set_c)]:
         X, y = fn(df)
         print(f"Zestaw {name}: X={X.shape}, anomalie={y.sum()} ({100*y.mean():.2f}%)")
