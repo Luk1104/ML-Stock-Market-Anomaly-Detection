@@ -13,9 +13,14 @@ def load_data(ticker="AAPL"):
         print("Nieprawidłowy ticker. Ticker powinien zawierać tylko litery")
         exit()
 
-    asset_data = yf.Ticker(asset).history(period='1d', interval='1m')
+    data = yf.Ticker(asset).history(period='1d', interval='1m')
 
-    return asset_data
+    data['EMA30'] = data['Close'].ewm(span=30, adjust=False).mean()
+    data['Anomaly'] = (data['Close'] > data['EMA30']) & (data['Close'].shift(1) <= data['EMA30'].shift(1))
+    
+    anomalies = data[data['Anomaly']]
+
+    return data,anomalies
 
     #asset_data['EMA30'] = asset_data['Close'].ewm(span=30, adjust=False).mean()
 
