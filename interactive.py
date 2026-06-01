@@ -84,6 +84,15 @@ def _load(ticker: str):
     return _CACHE[ticker]
 
 
+def _ml_tickers() -> list:
+    """Tickers shown in the ML view: the two defaults plus whichever ticker the
+    user has currently selected in the chart view (replacing the 3rd slot)."""
+    selected = _state["ticker"]
+    base = TICKERS[:2]                      # AAPL, MSFT
+    third = selected if selected not in base else TICKERS[2]
+    return base + [third]
+
+
 def _build_smote_pipeline(clf):
     return ImbPipeline([
         ("scaler", StandardScaler()),
@@ -135,6 +144,34 @@ def _run_exp2(df, z: float, v: float, clf_name: str) -> dict:
     return dict(plain_f1=np.array(plain_f1), smote_f1=np.array(smote_f1),
                 plain_prec=np.array(plain_prec), smote_prec=np.array(smote_prec),
                 plain_rec=np.array(plain_rec), smote_rec=np.array(smote_rec))
+
+# ---------------------------------------------------------------------------
+# View switching
+# ---------------------------------------------------------------------------
+
+def _switch_view(fig, builder):
+    """Defer a full view rebuild until after the triggering click finishes.
+
+    Calling fig.clf() directly inside a Button callback destroys the axes
+    while the button still holds the mouse grab, raising
+    "Another Axes already grabs mouse input" on the next click. A short
+    one-shot timer lets the click event fully release the grab first.
+    """
+    timer = fig.canvas.new_timer(interval=20)
+
+    def _go():
+        timer.stop()
+        builder(fig)
+        # Force an immediate repaint — on the macOS backend a deferred
+        # draw_idle() inside a timer callback otherwise waits for a window
+        # event (e.g. resize) before the new view actually appears.
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+    timer.add_callback(_go)
+    fig._switch_timer = timer   # keep a strong ref so the timer isn't GC'd
+    timer.start()
+
 
 # ---------------------------------------------------------------------------
 # Chart view
@@ -245,7 +282,7 @@ def _show_chart_view(fig):
             fig.canvas.draw_idle()
 
     def _on_compute(_):
-        _show_ml_view(fig)
+        _switch_view(fig, _show_ml_view)
 
     slider_z.on_changed(_on_slider)
     slider_v.on_changed(_on_slider)
@@ -270,10 +307,16 @@ def _show_ml_view(fig):
     ax_clf  = fig.add_axes([0.01, 0.895, 0.20, 0.095])
     ax_run  = fig.add_axes([0.23, 0.910, 0.07, 0.055])
     ax_back = fig.add_axes([0.32, 0.910, 0.07, 0.055])
-    ax_stat = fig.add_axes([0.41, 0.895, 0.57, 0.095])
+    ax_stat = fig.add_axes([0.41, 0.895, 0.40, 0.095])
     ax_stat.axis("off")
     status = ax_stat.text(0, 0.5, "Click Run ▶ to compute results.",
                           va="center", fontsize=10, color="#333333")
+
+    # Always-visible banner confirming the thresholds carried over from the chart view
+    fig.text(0.985, 0.945,
+             f"Using thresholds from chart:  z = {_state['z']:.1f}   vol = {_state['v']:.1f}",
+             ha="right", va="center", fontsize=10, color="#1a6e1a", fontweight="bold",
+             bbox=dict(boxstyle="round,pad=0.4", facecolor="#eaf6ea", edgecolor="#9ccc9c"))
 
     radio_clf = RadioButtons(
         ax_clf, list(CLASSIFIERS.keys()),
@@ -306,7 +349,7 @@ def _show_ml_view(fig):
         for ax in exp1_axes + exp2_axes:
             ax.cla()
 
-        for col, ticker in enumerate(TICKERS):
+        for col, ticker in enumerate(_ml_tickers()):
             df = _load(ticker)
 
             # Exp 1
@@ -357,7 +400,7 @@ def _show_ml_view(fig):
         fig.canvas.draw_idle()
 
     def _on_back(_):
-        _show_chart_view(fig)
+        _switch_view(fig, _show_chart_view)
 
     btn_run.on_clicked(_recompute)
     btn_back.on_clicked(_on_back)
