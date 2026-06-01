@@ -13,7 +13,6 @@ import matplotlib.gridspec as gridspec
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 from sklearn.metrics import f1_score, precision_score, recall_score
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
@@ -21,30 +20,15 @@ from scipy.stats import wilcoxon
 
 from load_data import load_ticker
 from features import feature_set_all
+from config import TICKERS, N_SPLITS, N_TREES, RANDOM_STATE, PALETTE_DICT, build_pipeline
 
 # --- Konfiguracja ---
-TICKERS      = ["AAPL", "MSFT", "TSLA"]
-N_SPLITS     = 5
-N_TREES      = 100
-RANDOM_STATE = 42
-
-COLORS = {"plain": "#4C72B0", "smote": "#DD8452"}
+COLORS = PALETTE_DICT
 
 
 # ---------------------------------------------------------------------------
 # Pipelines
 # ---------------------------------------------------------------------------
-
-def pipeline_plain() -> Pipeline:
-    """RandomForest z class_weight='balanced', bez resamplingu."""
-    return Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(
-            n_estimators=N_TREES,
-            class_weight="balanced",
-            random_state=RANDOM_STATE,
-        )),
-    ])
 
 
 def pipeline_smote() -> ImbPipeline:
@@ -65,7 +49,7 @@ def pipeline_smote() -> ImbPipeline:
 
 def run_cv(X: np.ndarray, y: np.ndarray, use_smote: bool):
     """Zwraca (f1_scores, precision_scores, recall_scores) per fold."""
-    pipe = pipeline_smote() if use_smote else pipeline_plain()
+    pipe = pipeline_smote() if use_smote else build_pipeline()
     cv   = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
 
     f1s, precs, recs = [], [], []

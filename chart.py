@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from pathlib import Path
 
-from load_data import load_ticker, DEFAULT_TICKERS
+from load_data import load_ticker
 from features import add_labels
 
 

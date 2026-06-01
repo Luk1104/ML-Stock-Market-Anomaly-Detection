@@ -17,6 +17,11 @@ import pandas as pd
 # Etykietowanie
 # ---------------------------------------------------------------------------
 
+def _finalise(df: pd.DataFrame, cols: list):
+    df = df.dropna()
+    return df[cols].values, df["label"].values
+
+
 def add_labels(df: pd.DataFrame, z_thresh: float = 3.0) -> pd.DataFrame:
     """
     Dodaje kolumny 'return' i 'label' do DataFrame.
@@ -59,9 +64,7 @@ def _bollinger(close: pd.Series, period: int = 20):
 def feature_set_a(df: pd.DataFrame, z_thresh: float = 3.0):
     """Zestaw A: surowy zwrot dzienny (1 cecha)."""
     df = add_labels(df, z_thresh)
-    X = df[["return"]].values
-    y = df["label"].values
-    return X, y
+    return _finalise(df, ["return"])
 
 
 def feature_set_b(df: pd.DataFrame, z_thresh: float = 3.0):
@@ -72,10 +75,7 @@ def feature_set_b(df: pd.DataFrame, z_thresh: float = 3.0):
     df["ma20"] = close.rolling(20).mean()
     df["std5"] = close.rolling(5).std()
     df["std20"] = close.rolling(20).std()
-    df = df.dropna()
-    X = df[["return", "ma5", "ma20", "std5", "std20"]].values
-    y = df["label"].values
-    return X, y
+    return _finalise(df, ["return", "ma5", "ma20", "std5", "std20"])
 
 
 def feature_set_c(df: pd.DataFrame, z_thresh: float = 3.0):
@@ -84,27 +84,21 @@ def feature_set_c(df: pd.DataFrame, z_thresh: float = 3.0):
     close = df["Close"]
     df["rsi"] = _rsi(close)
     df["bb_width"], df["bb_pos"] = _bollinger(close)
-    df = df.dropna()
-    X = df[["return", "rsi", "bb_width", "bb_pos"]].values
-    y = df["label"].values
-    return X, y
+    return _finalise(df, ["return", "rsi", "bb_width", "bb_pos"])
 
 
 def feature_set_all(df: pd.DataFrame, z_thresh: float = 3.0):
     """Wszystkie cechy łącznie (używane w Eksperymencie 2)."""
     df = add_labels(df, z_thresh)
     close = df["Close"]
-    df["ma5"]  = close.rolling(5).mean()
-    df["ma20"] = close.rolling(20).mean()
-    df["std5"] = close.rolling(5).std()
+    df["ma5"]   = close.rolling(5).mean()
+    df["ma20"]  = close.rolling(20).mean()
+    df["std5"]  = close.rolling(5).std()
     df["std20"] = close.rolling(20).std()
     df["rsi"] = _rsi(close)
     df["bb_width"], df["bb_pos"] = _bollinger(close)
-    df = df.dropna()
     cols = ["return", "ma5", "ma20", "std5", "std20", "rsi", "bb_width", "bb_pos"]
-    X = df[cols].values
-    y = df["label"].values
-    return X, y
+    return _finalise(df, cols)
 
 
 if __name__ == "__main__":

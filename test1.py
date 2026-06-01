@@ -8,38 +8,20 @@ Ocena: 5-krotna walidacja krzyżowa StratifiedKFold, metryka F1 dla klasy anomal
 
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 
-from load_data import load_ticker, DEFAULT_TICKERS
+from load_data import load_ticker
 from features import feature_set_a, feature_set_b, feature_set_c
+from config import TICKERS, N_SPLITS, N_TREES, RANDOM_STATE, PALETTE_LIST, build_pipeline
 
 # --- Konfiguracja ---
-TICKERS   = ["AAPL", "MSFT", "TSLA"]   # Można rozszerzyć o DEFAULT_TICKERS
-N_SPLITS  = 5
-N_TREES   = 100
-RANDOM_STATE = 42
-
 FEATURE_SETS = {
     "A – surowe zwroty":   feature_set_a,
     "B – rolling stats":   feature_set_b,
     "C – RSI + Bollinger": feature_set_c,
 }
 
-COLORS = ["#4C72B0", "#DD8452", "#55A868"]
-
-
-def build_pipeline() -> Pipeline:
-    return Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(
-            n_estimators=N_TREES,
-            class_weight="balanced",
-            random_state=RANDOM_STATE,
-        )),
-    ])
+COLORS = PALETTE_LIST
 
 
 def evaluate(X: np.ndarray, y: np.ndarray, label: str) -> np.ndarray:
