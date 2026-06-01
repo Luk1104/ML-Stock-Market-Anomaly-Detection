@@ -14,12 +14,11 @@ PALETTE_LIST = ["#4C72B0", "#DD8452", "#55A868", "#8172B3"]
 PALETTE_DICT = {"plain": "#4C72B0", "smote": "#DD8452"}
 
 
-def build_pipeline() -> Pipeline:
-    return Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(
+def build_pipeline(clf=None) -> Pipeline:
+    if clf is None:
+        clf = RandomForestClassifier(
             n_estimators=N_TREES,
             class_weight="balanced",
             random_state=RANDOM_STATE,
-        )),
-    ])
+        )
+    return Pipeline([("scaler", StandardScaler()), ("clf", clf)])

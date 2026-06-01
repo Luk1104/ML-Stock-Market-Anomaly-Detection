@@ -102,8 +102,8 @@ All 12 features combined: return + all of Set B + all of Set C. This is the rich
 1. Download 5 years of daily data for AAPL (Apple), MSFT (Microsoft), and TSLA (Tesla).
 2. For each stock, evaluate all four approaches using 5-fold cross-validation:
    - **A** — supervised Random Forest, raw return only
-   - **B** — supervised Random Forest, rolling stats + volume (no return)
-   - **C** — supervised Random Forest, technical indicators + volume (no return)
+   - **B** — supervised Random Forest, return + rolling stats + volume
+   - **C** — supervised Random Forest, return + technical indicators + volume
    - **D** — Isolation Forest (unsupervised — see below)
 3. Record the F1 score per approach per stock.
 4. Save a bar chart (`exp1_feature_comparison.png`) showing all four F1 scores side by side.
@@ -114,6 +114,22 @@ All 12 features combined: return + all of Set B + all of Set C. This is the rich
 This is the most honest approach in terms of the original goal: it does not rely on a pre-defined rule to tell it what an anomaly is. Instead, it discovers unusual days on its own. We then compare its guesses against our joint-label ground truth to see how well an unsupervised approach can agree with the labeled definition.
 
 **What the output tells you:** If Set B or C scores higher than Set A, it confirms that volume + technical context carries real signal. If Isolation Forest performs comparably to the supervised approaches, it means the anomalies are genuinely detectable patterns in the data, not just artefacts of the labeling formula.
+
+### Why the "best" feature set changes with the thresholds
+A surprising but important result: which feature set wins is **not fixed** — it depends on the z and volume thresholds you choose (try this live in `interactive.py`).
+
+- **High z_thresh (e.g. 3.0)** → only the most extreme return days qualify, giving very few anomalies (~10). Here the raw return (Set A) wins easily: extreme returns are trivial to spot, and there are too few examples for the richer sets B and C to learn their 6–9 features. They often collapse toward zero.
+- **Lower z_thresh (e.g. 2.0 or 1.5)** → two things happen at once. First, "extreme" returns are now only mildly large and overlap with normal days, so the return becomes a *weak* signal and Set A drops. Second, there are many more anomaly examples, so B and C finally have enough data to learn. Combined with the fact that Set A is completely blind to volume, the volume-aware sets B and C overtake A.
+
+Measured example (AAPL):
+
+| z | vol | anomalies | A (return) | B (rolling+vol) | C (RSI+vol) |
+|---|-----|-----------|-----------|------------------|-------------|
+| 3.0 | 1.5 | 10 | **0.51** | 0.13 | 0.13 |
+| 2.0 | 1.5 | 28 | 0.60 | 0.51 | **0.64** |
+| 1.5 | 2.0 | 33 | 0.29 | **0.50** | **0.50** |
+
+The takeaway: a feature set is only as good as the problem you point it at. Defining the anomaly differently changes which signals matter.
 
 ---
 
@@ -150,7 +166,7 @@ The results are saved as a chart (`exp2_smote_comparison.png`) showing F1, Preci
 
 The original version only required an unusual price return (z-score > 3). This caused a problem: every feature set included the raw return as one of its inputs, so the model was essentially learning to reproduce its own label formula — not discovering anything meaningful. Set A scored ~0.96 F1 for the wrong reason.
 
-The new approach requires both an unusual return **and** an unusual volume spike. This eliminates the circular shortcut, brings the labels closer to what actually characterises suspicious market activity, and gives Sets B and C (which do not include the raw return) a genuine chance to be informative.
+The new approach requires both an unusual return **and** an unusual volume spike. This eliminates the circular shortcut and brings the labels closer to what actually characterises suspicious market activity. Because the label now depends on volume too, the volume features added to Sets B and C carry genuine information that the raw return alone cannot reproduce.
 
 ### Why Sets B and C include the return
 
@@ -163,3 +179,25 @@ All labels are computed by formula from the downloaded data — no manual annota
 ### Isolation Forest as unsupervised baseline
 
 Approach D in Experiment 1 is included to show what purely data-driven detection looks like — no rule, no label, no prior assumption about what an anomaly is. Its F1 score is measured by comparing its output against the joint-label ground truth, so the number is comparable to the supervised approaches on the same chart.
+
+---
+
+## Interactive dashboard (`interactive.py`)
+
+A single-window GUI that lets you explore everything above by hand. Run it with `python interactive.py`.
+
+**Chart view (opens first):**
+- A live price chart with anomaly days marked in red, plus a daily-returns bar panel below.
+- Two sliders — **z thresh** and **vol thresh** — that redefine what counts as an anomaly. The chart updates instantly as you drag them.
+- Radio buttons for the default tickers (AAPL / MSFT / TSLA). To analyse any other stock, type its symbol in the text box (e.g. `NVDA`, `PKN.WA`) and press **Load** — a new radio button appears for it. Invalid symbols show an error message instead of crashing.
+
+**ML view (opens when you click "Compute ML ▶"):**
+- Runs both experiments for all three default tickers, using whatever z/vol thresholds were set on the sliders.
+- Radio buttons let you pick the classifier — **Random Forest**, **Logistic Regression**, or **SVM** — then click **Run ▶** to recompute. This is how you compare how different models cope with the same data.
+- **← Back** returns to the chart view; your thresholds and ticker selection are remembered.
+
+This dashboard is purely a viewer — it reuses the exact same labeling and evaluation logic as `test1.py` / `test2.py`, and does not modify them. It is the easiest way to *see* the threshold-sensitivity effect described above: drag z thresh from 3.0 down to 1.5 and watch Set A lose its lead to Sets B and C.
+
+### A note for developers: the matplotlib widget "gotcha"
+
+The interactive widgets (sliders, buttons, radios) all have to be stored on the figure object (`fig._widgets`) rather than left as ordinary local variables. The reason is subtle: matplotlib registers widget callbacks using **weak references**, which do not keep the widget alive. Once the function that built them returns, Python's garbage collector frees the widgets and they silently stop responding to clicks — no error, they just go dead. Pinning them to the long-lived `fig` object keeps a strong reference for the figure's whole lifetime. Any new widget added to the dashboard must be stored the same way.
