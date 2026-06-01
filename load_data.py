@@ -2,6 +2,8 @@ import yfinance as yf
 import pandas as pd
 import re
 
+from config import TICKERS
+
 DEFAULT_TICKERS = ["AAPL", "MSFT", "TSLA", "PKN.WA", "CDR.WA"]
 
 
@@ -24,7 +26,7 @@ def load_ticker(ticker: str, period: str = "5y") -> pd.DataFrame:
 def load_multiple(tickers: list = None, period: str = "5y") -> dict:
     """Download data for multiple tickers. Returns dict {ticker: DataFrame}."""
     if tickers is None:
-        tickers = DEFAULT_TICKERS
+        tickers = TICKERS
 
     data = {}
     for t in tickers:

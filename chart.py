@@ -13,15 +13,16 @@ from pathlib import Path
 
 from load_data import load_ticker
 from features import add_labels
+from config import TICKERS, Z_THRESH, VOL_THRESH
 
 
-def visualize_anomalies(ticker: str, z_thresh: float = 3.0, save: bool = False):
+def visualize_anomalies(ticker: str, z_thresh: float = Z_THRESH, vol_thresh: float = VOL_THRESH, save: bool = False):
     """
     Rysuje wykres ceny z zaznaczonymi anomaliami.
     save=True wymusza zapis do pliku nawet w środowisku interaktywnym.
     """
     raw = load_ticker(ticker)
-    df  = add_labels(raw, z_thresh=z_thresh)
+    df  = add_labels(raw, z_thresh=z_thresh, vol_thresh=vol_thresh)
 
     anomalies = df[df["label"] == 1]
     pct_anom  = 100 * len(anomalies) / len(df)
@@ -35,7 +36,8 @@ def visualize_anomalies(ticker: str, z_thresh: float = 3.0, save: bool = False):
     ax1.plot(df.index, df["Close"], color="#1f77b4", linewidth=0.8, label="Cena zamknięcia")
     ax1.scatter(
         anomalies.index, anomalies["Close"],
-        color="red", s=45, zorder=5, label=f"Anomalia  |z| > {z_thresh}",
+        color="red", s=45, zorder=5,
+        label=f"Anomalia  |z_cena| > {z_thresh}  +  z_wolumen > {vol_thresh}",
     )
     ax1.set_title(
         f"{ticker.upper()} — Wykrywanie anomalii cenowych"
@@ -75,17 +77,17 @@ def visualize_anomalies(ticker: str, z_thresh: float = 3.0, save: bool = False):
     print(f"Wykryto {len(anomalies)} anomalii ({pct_anom:.2f}% danych) dla {ticker.upper()}")
 
 
-def visualize_multiple(tickers: list = None, z_thresh: float = 3.0):
+def visualize_multiple(tickers: list = None, z_thresh: float = Z_THRESH, vol_thresh: float = VOL_THRESH):
     """Porównanie 'anomalności' wielu spółek na jednym wykresie."""
     if tickers is None:
-        tickers = ["AAPL", "MSFT", "TSLA"]
+        tickers = TICKERS
 
     fig, ax = plt.subplots(figsize=(14, 6))
 
     for ticker in tickers:
         try:
             raw = load_ticker(ticker)
-            df  = add_labels(raw, z_thresh=z_thresh)
+            df  = add_labels(raw, z_thresh=z_thresh, vol_thresh=vol_thresh)
             # Znormalizowana cena (baza = 100) dla porównywalności
             norm = df["Close"] / df["Close"].iloc[0] * 100
             anom = df[df["label"] == 1]
@@ -96,7 +98,8 @@ def visualize_multiple(tickers: list = None, z_thresh: float = 3.0):
         except Exception as e:
             print(f"  {ticker}: błąd — {e}")
 
-    ax.set_title(f"Porównanie spółek — znormalizowana cena z anomaliami (|z| > {z_thresh})")
+    ax.set_title(f"Porównanie spółek — znormalizowana cena z anomaliami"
+                 f"  (|z_cena| > {z_thresh}  +  z_wolumen > {vol_thresh})")
     ax.set_ylabel("Cena znormalizowana (baza=100)")
     ax.set_xlabel("Data")
     ax.legend()
@@ -116,7 +119,7 @@ if __name__ == "__main__":
 
     if mode == "2":
         raw = input("Tickery oddzielone spacją (Enter = AAPL MSFT TSLA): ").strip()
-        tickers = raw.split() if raw else ["AAPL", "MSFT", "TSLA"]
+        tickers = raw.split() if raw else TICKERS
         visualize_multiple(tickers)
     else:
         ticker = input("Podaj ticker (Enter = AAPL): ").strip() or "AAPL"

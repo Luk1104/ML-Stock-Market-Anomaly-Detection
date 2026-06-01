@@ -2,17 +2,21 @@
 test1.py — Eksperyment 1: Porównanie zestawów cech
 
 Cel: sprawdzenie, który zestaw cech (A / B / C) najlepiej separuje anomalie.
+Dodatkowy punkt odniesienia: Isolation Forest (D) — wykrywanie bez etykiet.
 Klasyfikator: RandomForest z class_weight='balanced'.
 Ocena: 5-krotna walidacja krzyżowa StratifiedKFold, metryka F1 dla klasy anomalii.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
 from load_data import load_ticker
-from features import feature_set_a, feature_set_b, feature_set_c
-from config import TICKERS, N_SPLITS, N_TREES, RANDOM_STATE, PALETTE_LIST, build_pipeline
+from features import feature_set_a, feature_set_b, feature_set_c, feature_set_all
+from config import (TICKERS, N_SPLITS, N_TREES, RANDOM_STATE,
+                    CONTAMINATION, PALETTE_LIST, build_pipeline)
 
 # --- Konfiguracja ---
 FEATURE_SETS = {
@@ -29,6 +33,22 @@ def evaluate(X: np.ndarray, y: np.ndarray, label: str) -> np.ndarray:
     scores = cross_val_score(build_pipeline(), X, y, cv=cv, scoring="f1")
     print(f"    {label:<25} F1 = {scores.mean():.4f} ± {scores.std():.4f}"
           f"  (anomalii: {y.sum()}/{len(y)}, {100*y.mean():.1f}%)")
+    return scores
+
+
+def evaluate_isolation_forest(X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Unsupervised baseline: Isolation Forest trained without labels."""
+    cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
+    scores = []
+    for train_idx, test_idx in cv.split(X, y):
+        X_train, X_test = X[train_idx], X[test_idx]
+        clf = IsolationForest(contamination=CONTAMINATION, random_state=RANDOM_STATE)
+        clf.fit(X_train)                               # no labels used
+        y_pred = (clf.predict(X_test) == -1).astype(int)  # -1 → anomaly (1)
+        scores.append(f1_score(y[test_idx], y_pred, zero_division=0))
+    scores = np.array(scores)
+    print(f"    {'D – Isolation Forest':<25} F1 = {scores.mean():.4f} ± {scores.std():.4f}"
+          f"  (unsupervised)")
     return scores
 
 
@@ -74,6 +94,10 @@ def main():
         for name, fn in FEATURE_SETS.items():
             X, y = fn(df)
             results[ticker][name] = evaluate(X, y, name)
+
+        # Isolation Forest uses all features — richest unsupervised baseline
+        X_all, y_all = feature_set_all(df)
+        results[ticker]["D – Isolation Forest"] = evaluate_isolation_forest(X_all, y_all)
 
     # Podsumowanie — najlepszy zestaw per ticker
     print("\n--- Podsumowanie ---")
