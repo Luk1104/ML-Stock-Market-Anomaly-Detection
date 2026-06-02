@@ -93,29 +93,41 @@ def _ml_tickers() -> list:
     return base + [third]
 
 
-def _build_smote_pipeline(clf):
+def _build_smote_pipeline(clf, k_neighbors: int = 5):
     return ImbPipeline([
         ("scaler", StandardScaler()),
-        ("smote", SMOTE(random_state=RANDOM_STATE)),
+        ("smote", SMOTE(random_state=RANDOM_STATE, k_neighbors=k_neighbors)),
         ("clf", clf),
     ])
+
+
+def _enough_for_cv(y) -> bool:
+    """StratifiedKFold(n_splits=N_SPLITS) needs at least N_SPLITS samples in the
+    rarest class. Returns False when anomalies are too sparse to split (or when
+    there are no anomalies at all)."""
+    counts = np.bincount(y)
+    return len(counts) >= 2 and counts.min() >= N_SPLITS
 
 # ---------------------------------------------------------------------------
 # ML evaluation
 # ---------------------------------------------------------------------------
 
-def _run_exp1(df, z: float, v: float, clf_name: str) -> dict:
+def _run_exp1(df, z: float, v: float, clf_name: str):
     cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     results = {}
     for name, fn in [("A – raw return", feature_set_a),
                      ("B – rolling+vol", feature_set_b),
                      ("C – RSI+Boll.", feature_set_c)]:
         X, y = fn(df, z_thresh=z, vol_thresh=v)
+        if not _enough_for_cv(y):
+            return None
         scores = cross_val_score(build_pipeline(CLASSIFIERS[clf_name]()), X, y,
                                  cv=cv, scoring="f1")
         results[name] = scores
 
     X_all, y_all = feature_set_all(df, z_thresh=z, vol_thresh=v)
+    if not _enough_for_cv(y_all):
+        return None
     if_scores = []
     for tr, te in cv.split(X_all, y_all):
         clf_if = IsolationForest(contamination=CONTAMINATION, random_state=RANDOM_STATE)
@@ -126,15 +138,25 @@ def _run_exp1(df, z: float, v: float, clf_name: str) -> dict:
     return results
 
 
-def _run_exp2(df, z: float, v: float, clf_name: str) -> dict:
+def _run_exp2(df, z: float, v: float, clf_name: str):
     X, y = feature_set_all(df, z_thresh=z, vol_thresh=v)
+    if not _enough_for_cv(y):
+        return None
     cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     plain_f1, plain_prec, plain_rec = [], [], []
     smote_f1, smote_prec, smote_rec = [], [], []
     for tr, te in cv.split(X, y):
+        # SMOTE needs k_neighbors < the number of minority samples in the
+        # training fold. At high thresholds anomalies get rare, so cap k to
+        # what the fold can support; if there are too few to interpolate
+        # (<2), fall back to no resampling instead of crashing.
+        n_min = int(np.bincount(y[tr]).min())
+        k = min(5, n_min - 1)
+        smote_pipe = (_build_smote_pipeline(CLASSIFIERS[clf_name](), k)
+                      if k >= 1 else build_pipeline(CLASSIFIERS[clf_name]()))
         for f1l, pl, rl, pipe in [
             (plain_f1, plain_prec, plain_rec, build_pipeline(CLASSIFIERS[clf_name]())),
-            (smote_f1, smote_prec, smote_rec, _build_smote_pipeline(CLASSIFIERS[clf_name]())),
+            (smote_f1, smote_prec, smote_rec, smote_pipe),
         ]:
             pipe.fit(X[tr], y[tr])
             yp = pipe.predict(X[te])
@@ -161,6 +183,13 @@ def _switch_view(fig, builder):
 
     def _go():
         timer.stop()
+        # Release any mouse grab left over from a slider drag before tearing the
+        # axes down. Otherwise canvas._mouse_grabber keeps pointing at the
+        # destroyed axes and the next slider press raises
+        # "Another Axes already grabs mouse input".
+        grabber = getattr(fig.canvas, "_mouse_grabber", None)
+        if grabber is not None:
+            fig.canvas.release_mouse(grabber)
         builder(fig)
         # Force an immediate repaint — on the macOS backend a deferred
         # draw_idle() inside a timer callback otherwise waits for a window
@@ -349,54 +378,77 @@ def _show_ml_view(fig):
         for ax in exp1_axes + exp2_axes:
             ax.cla()
 
+        def _too_few(ax, ticker):
+            """Render a 'not enough anomalies' placeholder in a column."""
+            ax.set_title(f"{ticker}", fontsize=10, fontweight="bold")
+            ax.set_xticks([]); ax.set_yticks([])
+            ax.text(0.5, 0.5,
+                    f"Too few anomalies\nat z={z:.1f}  vol={v:.1f}\n"
+                    f"(need ≥{N_SPLITS} per class)\nlower the thresholds",
+                    ha="center", va="center", fontsize=8.5, color="#b00020",
+                    transform=ax.transAxes)
+
+        skipped = False
         for col, ticker in enumerate(_ml_tickers()):
             df = _load(ticker)
 
             # Exp 1
             r1 = _run_exp1(df, z, v, clf_name)
-            names = list(r1.keys())
-            means = [r1[k].mean() for k in names]
-            stds  = [r1[k].std()  for k in names]
             ax = exp1_axes[col]
-            ax.bar(names, means, yerr=stds, capsize=5,
-                   color=PALETTE_LIST[:len(names)], edgecolor="white")
-            ax.set_title(f"{ticker}", fontsize=10, fontweight="bold")
-            ax.set_ylim(0, 1)
-            ax.tick_params(axis="x", rotation=15, labelsize=7)
-            ax.grid(axis="y", alpha=0.3)
-            if col == 0:
-                ax.set_ylabel("F1 (anomaly)", fontsize=8)
-            for i, (m, s) in enumerate(zip(means, stds)):
-                ax.text(i, min(m + s + 0.02, 0.93), f"{m:.2f}",
-                        ha="center", fontsize=8)
+            if r1 is None:
+                _too_few(ax, ticker)
+                skipped = True
+            else:
+                names = list(r1.keys())
+                means = [r1[k].mean() for k in names]
+                stds  = [r1[k].std()  for k in names]
+                ax.bar(names, means, yerr=stds, capsize=5,
+                       color=PALETTE_LIST[:len(names)], edgecolor="white")
+                ax.set_title(f"{ticker}", fontsize=10, fontweight="bold")
+                ax.set_ylim(0, 1)
+                ax.tick_params(axis="x", rotation=15, labelsize=7)
+                ax.grid(axis="y", alpha=0.3)
+                if col == 0:
+                    ax.set_ylabel("F1 (anomaly)", fontsize=8)
+                for i, (m, s) in enumerate(zip(means, stds)):
+                    ax.text(i, min(m + s + 0.02, 0.93), f"{m:.2f}",
+                            ha="center", fontsize=8)
 
             # Exp 2
             r2 = _run_exp2(df, z, v, clf_name)
             ax2 = exp2_axes[col]
-            labels = ["F1\nPlain", "F1\nSMOTE",
-                      "Prec\nPlain", "Prec\nSMOTE",
-                      "Rec\nPlain", "Rec\nSMOTE"]
-            vals = [r2["plain_f1"].mean(), r2["smote_f1"].mean(),
-                    r2["plain_prec"].mean(), r2["smote_prec"].mean(),
-                    r2["plain_rec"].mean(),  r2["smote_rec"].mean()]
-            errs = [r2["plain_f1"].std(), r2["smote_f1"].std(),
-                    r2["plain_prec"].std(), r2["smote_prec"].std(),
-                    r2["plain_rec"].std(),  r2["smote_rec"].std()]
-            bar_colors = [PALETTE_DICT["plain"], PALETTE_DICT["smote"]] * 3
-            ax2.bar(labels, vals, yerr=errs, capsize=4,
-                    color=bar_colors, edgecolor="white")
-            ax2.set_title(f"{ticker}", fontsize=10, fontweight="bold")
-            ax2.set_ylim(0, 1)
-            ax2.tick_params(axis="x", labelsize=7)
-            ax2.grid(axis="y", alpha=0.3)
-            if col == 0:
-                ax2.set_ylabel("Score", fontsize=8)
+            if r2 is None:
+                _too_few(ax2, ticker)
+                skipped = True
+            else:
+                labels = ["F1\nPlain", "F1\nSMOTE",
+                          "Prec\nPlain", "Prec\nSMOTE",
+                          "Rec\nPlain", "Rec\nSMOTE"]
+                vals = [r2["plain_f1"].mean(), r2["smote_f1"].mean(),
+                        r2["plain_prec"].mean(), r2["smote_prec"].mean(),
+                        r2["plain_rec"].mean(),  r2["smote_rec"].mean()]
+                errs = [r2["plain_f1"].std(), r2["smote_f1"].std(),
+                        r2["plain_prec"].std(), r2["smote_prec"].std(),
+                        r2["plain_rec"].std(),  r2["smote_rec"].std()]
+                bar_colors = [PALETTE_DICT["plain"], PALETTE_DICT["smote"]] * 3
+                ax2.bar(labels, vals, yerr=errs, capsize=4,
+                        color=bar_colors, edgecolor="white")
+                ax2.set_title(f"{ticker}", fontsize=10, fontweight="bold")
+                ax2.set_ylim(0, 1)
+                ax2.tick_params(axis="x", labelsize=7)
+                ax2.grid(axis="y", alpha=0.3)
+                if col == 0:
+                    ax2.set_ylabel("Score", fontsize=8)
 
         fig.suptitle(
             f"ML Results — {clf_name}  |  z={z:.1f}  vol={v:.1f}",
             fontsize=11, y=0.998,
         )
-        status.set_text(f"Done  ({clf_name})")
+        if skipped:
+            status.set_text(f"Done  ({clf_name})  —  some tickers had too few "
+                            f"anomalies at these thresholds")
+        else:
+            status.set_text(f"Done  ({clf_name})")
         fig.canvas.draw_idle()
 
     def _on_back(_):
