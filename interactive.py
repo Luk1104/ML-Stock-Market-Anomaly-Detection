@@ -115,9 +115,9 @@ def _enough_for_cv(y) -> bool:
 def _run_exp1(df, z: float, v: float, clf_name: str):
     cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     results = {}
-    for name, fn in [("A – raw return", feature_set_a),
-                     ("B – rolling+vol", feature_set_b),
-                     ("C – RSI+Boll.", feature_set_c)]:
+    for name, fn in [("A - raw return", feature_set_a),
+                     ("B - rolling+vol", feature_set_b),
+                     ("C - RSI+Boll.", feature_set_c)]:
         X, y = fn(df, z_thresh=z, vol_thresh=v)
         if not _enough_for_cv(y):
             return None
@@ -134,7 +134,7 @@ def _run_exp1(df, z: float, v: float, clf_name: str):
         clf_if.fit(X_all[tr])
         y_pred = (clf_if.predict(X_all[te]) == -1).astype(int)
         if_scores.append(f1_score(y_all[te], y_pred, zero_division=0))
-    results["D – Isolation F."] = np.array(if_scores)
+    results["D - Isolation F."] = np.array(if_scores)
     return results
 
 
