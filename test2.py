@@ -1,5 +1,5 @@
 """
-test2.py — Eksperyment 2: Klasyfikacja niezbalansowana — SMOTE vs bez resamplingu
+test2.py - Eksperyment 2: Klasyfikacja niezbalansowana - SMOTE vs bez resamplingu
 
 Cel: sprawdzenie, czy SMOTE poprawia detekcję anomalii (~2-5% danych).
 Klasyfikator: RandomForest.
@@ -84,7 +84,7 @@ def plot_results(summary: dict):
         bars = ax1.bar(["Bez SMOTE", "Ze SMOTE"], means, yerr=stds, capsize=6,
                        color=[COLORS["plain"], COLORS["smote"]], edgecolor="white")
         ax1.set_ylim(0, 1)
-        ax1.set_title(f"{ticker} — F1", fontsize=11)
+        ax1.set_title(f"{ticker} - F1", fontsize=11)
         ax1.set_ylabel("F1 (anomaly)")
         ax1.grid(axis="y", alpha=0.3)
         for bar, m in zip(bars, means):
@@ -102,11 +102,11 @@ def plot_results(summary: dict):
         colors_bar = [COLORS["plain"], COLORS["smote"]] * 2
         ax2.bar(metrics, vals, yerr=errs, capsize=5, color=colors_bar, edgecolor="white")
         ax2.set_ylim(0, 1)
-        ax2.set_title(f"{ticker} — Precision / Recall", fontsize=11)
+        ax2.set_title(f"{ticker} - Precision / Recall", fontsize=11)
         ax2.tick_params(axis="x", labelsize=8)
         ax2.grid(axis="y", alpha=0.3)
 
-    fig.suptitle("Eksperyment 2 — SMOTE vs bez resamplingu", fontsize=14, y=1.01)
+    fig.suptitle("Eksperyment 2 - SMOTE vs bez resamplingu", fontsize=14, y=1.01)
     plt.savefig("exp2_smote_comparison.png", dpi=150, bbox_inches="tight")
     print("Wykres zapisano do: exp2_smote_comparison.png")
     plt.show()
@@ -145,15 +145,15 @@ def main():
             "smote_rec":  rec_smote,
         }
 
-        print(f"  Bez SMOTE  — F1: {f1_plain.mean():.4f} ± {f1_plain.std():.4f} | "
+        print(f"  Bez SMOTE  - F1: {f1_plain.mean():.4f} ± {f1_plain.std():.4f} | "
               f"Prec: {prec_plain.mean():.4f} | Rec: {rec_plain.mean():.4f}")
-        print(f"  Ze SMOTE   — F1: {f1_smote.mean():.4f} ± {f1_smote.std():.4f} | "
+        print(f"  Ze SMOTE   - F1: {f1_smote.mean():.4f} ± {f1_smote.std():.4f} | "
               f"Prec: {prec_smote.mean():.4f} | Rec: {rec_smote.mean():.4f}")
 
     # --- Test Wilcoxona ---
     print("\n--- Test Wilcoxona (F1, wszystkie foldy i tickery łącznie) ---")
     if np.array_equal(all_f1_plain, all_f1_smote):
-        print("  Wyniki identyczne — test niemożliwy.")
+        print("  Wyniki identyczne - test niemożliwy.")
     else:
         stat, p = wilcoxon(all_f1_plain, all_f1_smote)
         better  = "SMOTE" if np.mean(all_f1_smote) > np.mean(all_f1_plain) else "bez SMOTE"

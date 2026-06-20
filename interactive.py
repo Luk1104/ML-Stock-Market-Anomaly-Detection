@@ -1,5 +1,5 @@
 """
-interactive.py — Single-window interactive anomaly explorer + ML dashboard
+interactive.py - Single-window interactive anomaly explorer + ML dashboard
 
 Chart view (default):
   - Live price chart with anomaly markers
@@ -18,7 +18,7 @@ Run with: python interactive.py
 """
 
 import matplotlib
-# Force a GUI backend before importing pyplot — required for interactive widgets
+# Force a GUI backend before importing pyplot - required for interactive widgets
 _cur = matplotlib.get_backend().lower()
 if "inline" in _cur or _cur == "agg":
     try:
@@ -44,7 +44,7 @@ from config import (TICKERS, N_SPLITS, RANDOM_STATE, CONTAMINATION,
                     Z_THRESH, VOL_THRESH, PALETTE_LIST, PALETTE_DICT, build_pipeline)
 
 # ---------------------------------------------------------------------------
-# Persistent state — survives view switches
+# Persistent state - survives view switches
 # ---------------------------------------------------------------------------
 
 _state = {
@@ -191,7 +191,7 @@ def _switch_view(fig, builder):
         if grabber is not None:
             fig.canvas.release_mouse(grabber)
         builder(fig)
-        # Force an immediate repaint — on the macOS backend a deferred
+        # Force an immediate repaint - on the macOS backend a deferred
         # draw_idle() inside a timer callback otherwise waits for a window
         # event (e.g. resize) before the new view actually appears.
         fig.canvas.draw()
@@ -226,7 +226,7 @@ def _show_chart_view(fig):
     ax_stat.axis("off")
     status = ax_stat.text(0, 0.5, "", va="center", fontsize=9, color="#333333")
 
-    # Widgets must be kept referenced for the figure's lifetime — matplotlib's
+    # Widgets must be kept referenced for the figure's lifetime - matplotlib's
     # callback registry uses weak refs, so locals get GC'd and stop responding.
     fig._widgets = {}
 
@@ -268,7 +268,7 @@ def _show_chart_view(fig):
                          color="red", s=40, zorder=5,
                          label=f"Anomaly  |z_ret|>{z:.1f}  z_vol>{v:.1f}")
         ax_price.set_title(
-            f"{ticker}  —  {len(anom)} anomalies ({pct:.2f}%)  "
+            f"{ticker}  -  {len(anom)} anomalies ({pct:.2f}%)  "
             f"[z_ret>{z:.1f}  z_vol>{v:.1f}]",
             fontsize=11,
         )
@@ -355,15 +355,15 @@ def _show_ml_view(fig):
     btn_run  = Button(ax_run,  "Run ▶",   color="#e8f4e8", hovercolor="#c8e8c8")
     btn_back = Button(ax_back, "← Back",  color="#f0f0f0", hovercolor="#dde8ff")
 
-    # Experiment axes — 2 rows × 3 columns
+    # Experiment axes - 2 rows × 3 columns
     col_positions = [0.04, 0.37, 0.70]
     col_width     = 0.27
     exp1_axes = [fig.add_axes([x, 0.53, col_width, 0.34]) for x in col_positions]
     exp2_axes = [fig.add_axes([x, 0.08, col_width, 0.34]) for x in col_positions]
 
-    fig.text(0.50, 0.895, "Exp 1 — Feature comparison (F1)",
+    fig.text(0.50, 0.895, "Exp 1 - Feature comparison (F1)",
              ha="center", va="bottom", fontsize=9, color="#555")
-    fig.text(0.50, 0.460, "Exp 2 — SMOTE vs Plain",
+    fig.text(0.50, 0.460, "Exp 2 - SMOTE vs Plain",
              ha="center", va="bottom", fontsize=9, color="#555")
 
     def _recompute(_=None):
@@ -441,11 +441,11 @@ def _show_ml_view(fig):
                     ax2.set_ylabel("Score", fontsize=8)
 
         fig.suptitle(
-            f"ML Results — {clf_name}  |  z={z:.1f}  vol={v:.1f}",
+            f"ML Results - {clf_name}  |  z={z:.1f}  vol={v:.1f}",
             fontsize=11, y=0.998,
         )
         if skipped:
-            status.set_text(f"Done  ({clf_name})  —  some tickers had too few "
+            status.set_text(f"Done  ({clf_name})  -  some tickers had too few "
                             f"anomalies at these thresholds")
         else:
             status.set_text(f"Done  ({clf_name})")
@@ -457,7 +457,7 @@ def _show_ml_view(fig):
     btn_run.on_clicked(_recompute)
     btn_back.on_clicked(_on_back)
 
-    # Keep widgets alive — matplotlib's callback registry holds only weak refs
+    # Keep widgets alive - matplotlib's callback registry holds only weak refs
     fig._widgets = dict(radio_clf=radio_clf, btn_run=btn_run, btn_back=btn_back)
 
 # ---------------------------------------------------------------------------

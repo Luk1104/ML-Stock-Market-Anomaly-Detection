@@ -1,8 +1,8 @@
 """
-test1.py — Eksperyment 1: Porównanie zestawów cech
+test1.py - Eksperyment 1: Porównanie zestawów cech
 
 Cel: sprawdzenie, który zestaw cech (A / B / C) najlepiej separuje anomalie.
-Dodatkowy punkt odniesienia: Isolation Forest (D) — wykrywanie bez etykiet.
+Dodatkowy punkt odniesienia: Isolation Forest (D) - wykrywanie bez etykiet.
 Klasyfikator: RandomForest z class_weight='balanced'.
 Ocena: 5-krotna walidacja krzyżowa StratifiedKFold, metryka F1 dla klasy anomalii.
 """
@@ -20,9 +20,9 @@ from config import (TICKERS, N_SPLITS, N_TREES, RANDOM_STATE,
 
 # --- Konfiguracja ---
 FEATURE_SETS = {
-    "A – surowe zwroty":   feature_set_a,
-    "B – rolling stats":   feature_set_b,
-    "C – RSI + Bollinger": feature_set_c,
+    "A - surowe zwroty":   feature_set_a,
+    "B - rolling stats":   feature_set_b,
+    "C - RSI + Bollinger": feature_set_c,
 }
 
 COLORS = PALETTE_LIST
@@ -47,7 +47,7 @@ def evaluate_isolation_forest(X: np.ndarray, y: np.ndarray) -> np.ndarray:
         y_pred = (clf.predict(X_test) == -1).astype(int)  # -1 → anomaly (1)
         scores.append(f1_score(y[test_idx], y_pred, zero_division=0))
     scores = np.array(scores)
-    print(f"    {'D – Isolation Forest':<25} F1 = {scores.mean():.4f} ± {scores.std():.4f}"
+    print(f"    {'D - Isolation Forest':<25} F1 = {scores.mean():.4f} ± {scores.std():.4f}"
           f"  (unsupervised)")
     return scores
 
@@ -64,14 +64,14 @@ def plot_results(results: dict):
         stds   = [results[ticker][k].std()  for k in names]
         ax.bar(names, means, yerr=stds, capsize=6, color=COLORS, edgecolor="white")
         ax.set_title(ticker, fontsize=12)
-        ax.set_ylabel("F1 — klasa anomalii")
+        ax.set_ylabel("F1 - klasa anomalii")
         ax.set_ylim(0, 1)
         ax.tick_params(axis="x", rotation=12)
         ax.grid(axis="y", alpha=0.3)
         for i, (m, s) in enumerate(zip(means, stds)):
             ax.text(i, m + s + 0.02, f"{m:.3f}", ha="center", fontsize=9)
 
-    fig.suptitle("Eksperyment 1 — Porównanie zestawów cech (F1, klasa anomalii)",
+    fig.suptitle("Eksperyment 1 - Porównanie zestawów cech (F1, klasa anomalii)",
                  fontsize=13, y=1.02)
     plt.tight_layout()
     plt.savefig("exp1_feature_comparison.png", dpi=150, bbox_inches="tight")
@@ -95,11 +95,11 @@ def main():
             X, y = fn(df)
             results[ticker][name] = evaluate(X, y, name)
 
-        # Isolation Forest uses all features — richest unsupervised baseline
+        # Isolation Forest uses all features - richest unsupervised baseline
         X_all, y_all = feature_set_all(df)
         results[ticker]["D – Isolation Forest"] = evaluate_isolation_forest(X_all, y_all)
 
-    # Podsumowanie — najlepszy zestaw per ticker
+    # Podsumowanie - najlepszy zestaw per ticker
     print("\n--- Podsumowanie ---")
     for ticker in TICKERS:
         best = max(results[ticker], key=lambda k: results[ticker][k].mean())

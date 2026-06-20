@@ -1,5 +1,5 @@
 """
-chart.py — Wizualizacja cen z zaznaczonymi anomaliami
+chart.py - Wizualizacja cen z zaznaczonymi anomaliami
 
 Górny panel:  wykres cen zamknięcia z czerwonymi markerami anomalii
 Dolny panel:  słupki dziennych zwrotów (anomalie na czerwono)
@@ -40,7 +40,7 @@ def visualize_anomalies(ticker: str, z_thresh: float = Z_THRESH, vol_thresh: flo
         label=f"Anomalia  |z_cena| > {z_thresh}  +  z_wolumen > {vol_thresh}",
     )
     ax1.set_title(
-        f"{ticker.upper()} — Wykrywanie anomalii cenowych"
+        f"{ticker.upper()} - Wykrywanie anomalii cenowych"
         f"  ({len(anomalies)} anomalii, {pct_anom:.2f}% danych)",
         fontsize=12,
     )
@@ -96,9 +96,9 @@ def visualize_multiple(tickers: list = None, z_thresh: float = Z_THRESH, vol_thr
             ax.plot(df.index, norm, linewidth=0.9, label=ticker)
             ax.scatter(anom.index, norm_anom, s=35, zorder=5)
         except Exception as e:
-            print(f"  {ticker}: błąd — {e}")
+            print(f"  {ticker}: błąd - {e}")
 
-    ax.set_title(f"Porównanie spółek — znormalizowana cena z anomaliami"
+    ax.set_title(f"Porównanie spółek - znormalizowana cena z anomaliami"
                  f"  (|z_cena| > {z_thresh}  +  z_wolumen > {vol_thresh})")
     ax.set_ylabel("Cena znormalizowana (baza=100)")
     ax.set_xlabel("Data")

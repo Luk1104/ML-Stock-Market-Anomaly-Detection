@@ -1,10 +1,10 @@
 """
-features.py — Ekstrakcja cech i etykietowanie anomalii
+features.py - Ekstrakcja cech i etykietowanie anomalii
 
 Trzy zestawy cech zgodnie z Eksperymentem 1:
-  A — surowe zwroty dzienne (baseline)
-  B — rolling statistics ceny + wolumen (MA5, MA20, std5, std20, vol_*)
-  C — wskaźniki techniczne (RSI, Bollinger Bands) + wolumen
+  A - surowe zwroty dzienne (baseline)
+  B - rolling statistics ceny + wolumen (MA5, MA20, std5, std20, vol_*)
+  C - wskaźniki techniczne (RSI, Bollinger Bands) + wolumen
 
 Etykiety: anomalia gdy |z-score zwrotu| > z_thresh ORAZ rolling z-score wolumenu > vol_thresh.
 Wymóg obu warunków eliminuje fałszywe alarmy (np. rutynowe ogłoszenia wyników).
@@ -28,7 +28,7 @@ def add_labels(df: pd.DataFrame, z_thresh: float = Z_THRESH, vol_thresh: float =
     """
     Dodaje kolumny 'return' i 'label' do DataFrame.
     label=1 gdy |z-score zwrotu dziennego| > z_thresh ORAZ rolling z-score wolumenu > vol_thresh.
-    Wolumen mierzony kroczącym z-score (okno 20 dni) — unika błędów wynikających z trendu wolumenu.
+    Wolumen mierzony kroczącym z-score (okno 20 dni) - unika błędów wynikających z trendu wolumenu.
     """
     df = df.copy()
     ret = df["Close"].pct_change()
@@ -82,13 +82,13 @@ def _volume_features(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def feature_set_a(df: pd.DataFrame, z_thresh: float = Z_THRESH, vol_thresh: float = VOL_THRESH):
-    """Zestaw A: surowy zwrot dzienny (1 cecha). Baseline — celowo nie zawiera wolumenu."""
+    """Zestaw A: surowy zwrot dzienny (1 cecha). Baseline - celowo nie zawiera wolumenu."""
     df = add_labels(df, z_thresh, vol_thresh)
     return _finalise(df, ["return"])
 
 
 def feature_set_b(df: pd.DataFrame, z_thresh: float = Z_THRESH, vol_thresh: float = VOL_THRESH):
-    """Zestaw B: zwrot + rolling statistics ceny + cechy wolumenu (9 cech)."""
+    """Zestaw B: zwrot + rolling statistics ceny (MA, STD) + cechy wolumenu (VOLMA, VOLSTD, VOLRATIO) (9 cech)."""
     df = add_labels(df, z_thresh, vol_thresh)
     close = df["Close"]
     df["ma5"]  = close.rolling(5).mean()

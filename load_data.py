@@ -34,7 +34,7 @@ def load_multiple(tickers: list = None, period: str = "5y") -> dict:
             data[t] = load_ticker(t, period)
             print(f"  {t}: {len(data[t])} wierszy")
         except Exception as e:
-            print(f"  {t}: błąd — {e}")
+            print(f"  {t}: błąd - {e}")
     return data
 
 
